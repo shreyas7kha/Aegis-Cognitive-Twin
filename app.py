@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 # -----------------------------
 # PAGE CONFIG
 # -----------------------------
-st.set_page_config(page_title="Aegis Cognitive Twin — Hybrid MVP", layout="wide")
+st.set_page_config(page_title="Aegis Cognitive Twin", layout="wide")
 
 
 # -----------------------------
@@ -135,8 +135,7 @@ def build_decision(
 st.sidebar.title("Aegis Control Panel")
 st.sidebar.markdown("---")
 st.sidebar.info(
-    "Decision-support MVP for Nuclear-as-a-Service (NaaS) + AI data-centre planning.\n\n"
-    "Boundary: **Aegis advises; it does not control nuclear assets.**"
+    "Disclaimer: **Aegis advises; it does not control nuclear assets.**"
 )
 
 # Keep globals only for things that truly are “system-level knobs”
@@ -157,7 +156,7 @@ show_assumptions = st.sidebar.checkbox("Show assumptions panels", value=True)
 # -----------------------------
 # HEADER
 # -----------------------------
-st.title("🛡️ Aegis Cognitive Twin: Decision Support Engine (Hybrid MVP)")
+st.title("🛡️ Aegis Cognitive Twin: Decision Support Engine")
 st.subheader("AI-native platform to evaluate SMR co-location for AI data centres under uncertainty")
 
 
@@ -166,11 +165,11 @@ st.subheader("AI-native platform to evaluate SMR co-location for AI data centres
 # -----------------------------
 tab_exec, tab_workflow, tab_facility, tab_econ, tab_risk, tab_assets, tab_reg = st.tabs([
     "✅ Executive Summary",
-    "📈 Workload & Workflow",
-    "🏭 Select Facility",
+    "📈 Demand Workflow",
+    "🏭 Supply Workflow",
     "💰 Economics",
-    "⏱️ Risk (Time + Break-even)",
-    "🧭 Asset Availability Intelligence",
+    "⏱️ Risk Analysis",
+    "🧭 Predictive Intelligence",
     "⚖️ Regulatory Navigator (RAG)"
 ])
 
@@ -179,11 +178,11 @@ tab_exec, tab_workflow, tab_facility, tab_econ, tab_risk, tab_assets, tab_reg = 
 # TAB: Workload & Workflow
 # -----------------------------
 with tab_workflow:
-    st.header("Workload–Facility Intelligence (AI Demand + Cooling)")
+    st.header("Demand Intelligence")
     left, right = st.columns([1, 2])
 
     with left:
-        st.write("### Scenario Presets (Investor-demo friendly)")
+        st.write("### Scenario Presets")
         scenario = st.selectbox(
             "Select workload regime",
             [
@@ -276,26 +275,12 @@ with tab_workflow:
             f"Supply ratio (peak) for 1 unit: **{float(smr_unit_rated_mw)/max(peak,1e-6):.2f}×**"
         )
 
-    # Workflow reconciliation block (the “story glue” you liked)
-    st.markdown("---")
-    st.subheader("Workflow Reconciliation (Demand → Fleet → Facility)")
-
-    # Present a compact “workflow table”
-    workflow_df = pd.DataFrame([
-        {"Step": "1) Demand (avg)", "Value": f"{np.mean(demand):.2f} MW", "Notes": "24h simulated mean"},
-        {"Step": "2) Demand (peak)", "Value": f"{np.max(demand):.2f} MW", "Notes": "Peak drives adequacy"},
-        {"Step": "3) Fleet (avg basis)", "Value": f"{req_units_avg} unit(s)", "Notes": "ceil(avg / unit size)"},
-        {"Step": "4) Fleet (peak basis)", "Value": f"{int(np.ceil(np.max(demand)/max(float(smr_unit_rated_mw),1e-6)))} unit(s)",
-         "Notes": "ceil(peak / unit size)"},
-    ])
-    st.dataframe(workflow_df)
-
 
 # -----------------------------
 # TAB: Select Facility
 # -----------------------------
 with tab_facility:
-    st.header("Select Facility (Fleet sizing + storage + feasibility)")
+    st.header("Supply Intelligence")
     demand_profile = st.session_state.get("demand_profile_mw")
     if demand_profile is None:
         st.warning("Go to 'Workload & Workflow' tab first.")
@@ -318,7 +303,7 @@ with tab_facility:
 
             st.caption(f"Suggested units by {sizing_basis.lower()} = **{required_units}** (basis demand: {basis_value:.2f} MW)")
 
-            st.write("### Storage (Downstream Flexibility)")
+            st.write("### Storage Capability")
             battery_power_mw = st.slider("Battery power capacity (MW)", 0.0, 200.0, 20.0, 1.0, key="sf_bp")
             battery_hours = st.slider("Battery duration (hours @ rated power)", 0.5, 12.0, 2.0, 0.5, key="sf_bh")
             thermal_absorb_mw = st.slider("Thermal storage absorption (MW equiv.)", 0.0, 200.0, 15.0, 1.0, key="sf_th")
@@ -399,7 +384,7 @@ with tab_facility:
         st.session_state["reliability"] = float(reliability)
 
         with right:
-            st.write("### Feasibility view (demand vs supply + routing)")
+            st.write("### Feasibility View")
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=facility_df["hour"], y=facility_df["Demand_MW"], name="Demand", line=dict(width=3)))
             fig.add_trace(go.Scatter(x=facility_df["hour"], y=facility_df["Supply_MW"], name="Supply (baseload)", line=dict(dash="dash", width=3)))
@@ -410,7 +395,7 @@ with tab_facility:
             fig.update_layout(barmode="relative", xaxis_title="Hour", yaxis_title="MW")
             st.plotly_chart(fig)
 
-            fig_soc = px.line(facility_df, x="hour", y="SOC_pct", title="Battery state-of-charge (linked)")
+            fig_soc = px.line(facility_df, x="hour", y="SOC_pct", title="Battery state-of-charge")
             st.plotly_chart(fig_soc)
 
             c1, c2, c3 = st.columns(3)
@@ -423,15 +408,15 @@ with tab_facility:
 # TAB: Economics (with clear implied value decomposition)
 # -----------------------------
 with tab_econ:
-    st.header("Economics (Decomposed value + costs)")
+    st.header("Economics")
     facility_df = st.session_state.get("facility_df")
     if facility_df is None:
-        st.warning("Go to 'Select Facility' tab first.")
+        st.warning("Go to 'Supply Workflow' tab first.")
     else:
         left, right = st.columns([1, 2])
 
         with left:
-            st.write("### CAPEX & OPEX inputs (prototype knobs)")
+            st.write("### Financial Inputs")
             capex_per_mw_crore = st.number_input("All-in CAPEX (₹ crore / MW)", 1.0, 100.0, 12.0, 0.5, key="ec_capex")
             fixed_capex_crore = st.number_input("Fixed CAPEX (₹ crore)", 0.0, 50000.0, 500.0, 50.0, key="ec_fixcapex")
             opex_fixed_crore_per_year = st.number_input("Fixed OPEX (₹ crore / year)", 0.0, 20000.0, 250.0, 10.0, key="ec_opexfix")
@@ -441,14 +426,14 @@ with tab_econ:
             project_life_years = st.slider("Project life (years)", 10, 40, 25, key="ec_life")
             wacc = st.slider("Discount rate / WACC (%)", 3.0, 18.0, 10.0, 0.5, key="ec_wacc") / 100.0
 
-            st.write("### Value inputs (what 'implied value of electricity' means)")
+            st.write("### Value inputs")
             grid_tariff = st.number_input("Grid tariff (₹ / kWh)", 1.0, 30.0, 8.0, 0.5, key="ec_grid")
             backup_tariff = st.number_input("Backup / diesel tariff (₹ / kWh)", 5.0, 60.0, 18.0, 0.5, key="ec_backup")
             outage_base_hours = st.slider("Outage hours/year (baseline)", 0.0, 200.0, 40.0, 1.0, key="ec_out0")
             outage_with_aegis_hours = st.slider("Outage hours/year (with SMR+storage)", 0.0, 100.0, 6.0, 1.0, key="ec_out1")
 
             if show_assumptions:
-                with st.expander("Interpretation (clear & pitch-friendly)"):
+                with st.expander("Interpretation"):
                     st.markdown(
                         "**Implied value** is not a market price claim. It's a *business value proxy*:\n\n"
                         "1) **Energy value**: kWh served × grid tariff (what you'd otherwise pay).\n"
@@ -490,7 +475,7 @@ with tab_econ:
         st.session_state["implied_rs_per_kwh"] = float(implied_rs_per_kwh)
 
         with right:
-            st.write("### Outputs (investor-ready tiles)")
+            st.write("### Outputs")
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Total CAPEX (₹ crore)", f"{total_capex_crore:,.0f}")
             c2.metric("Annualized CAPEX (₹ crore/yr)", f"{annualized_capex_crore:,.0f}")
@@ -508,7 +493,7 @@ with tab_econ:
             })
             st.plotly_chart(px.bar(parts, x="Component", y="₹/year", title="Implied value decomposition"))
 
-            with st.expander("Explain this to a judge in 20 seconds"):
+            with st.expander("Explain in 20 seconds"):
                 st.markdown(
                     f"- Your cost of electricity (LCOE proxy) is **₹{lcoe_rs_per_kwh:.2f}/kWh**.\n"
                     f"- The business value proxy (energy + avoided backup + avoided downtime) is **₹{implied_rs_per_kwh:.2f}/kWh**.\n"
@@ -520,7 +505,8 @@ with tab_econ:
 # TAB: Risk (Time-to-power + break-even cloud) + interpretation
 # -----------------------------
 with tab_risk:
-    st.header("Risk: Time-to-Power + Break-even under Uncertainty")
+    st.header("Risk Analysis")
+    st.subheader("Time-to-Power + Break-even under Uncertainty")
     st.write("This module explains what the *cloud* means and what drives it (inputs → distribution).")
 
     demand_profile = st.session_state.get("demand_profile_mw", np.full(24, 10.0))
@@ -529,7 +515,7 @@ with tab_risk:
     left, right = st.columns([1, 1])
 
     with left:
-        st.subheader("Simulation knobs (what the cloud depends on)")
+        st.subheader("Simulation Parameters")
         sim_count = st.slider("Simulation runs", 200, 5000, 1500, 100, key="rk_n")
 
         licensing_mean = st.slider("Licensing mean (months)", 6, 60, 24, 1, key="rk_lm")
@@ -545,7 +531,7 @@ with tab_risk:
         margin_unc_sd = st.slider("Value uncertainty (sd %)", 0.0, 60.0, 20.0, 1.0, key="rk_vsd")
 
         if show_assumptions:
-            with st.expander("How to interpret the cloud (plain English)"):
+            with st.expander("How to interpret the cloud"):
                 st.markdown(
                     "**Each dot** = one possible future scenario.\n\n"
                     "- **X-axis (time-to-power)**: how long until you can actually deliver power.\n"
@@ -603,14 +589,14 @@ with tab_risk:
 
         st.plotly_chart(
             px.histogram(risk_df, x="time_to_power_months", nbins=35, histnorm="probability",
-                         title="Time-to-power distribution (probability)")
+                         title="Time-to-power distribution")
         )
 
         st.plotly_chart(
             px.scatter(
                 risk_df, x="time_to_power_months", y="break_even_years",
                 color="value_minus_cost", opacity=0.6,
-                title="Delay vs Break-even (uncertainty cloud)",
+                title="Delay vs Break-even",
                 labels={"time_to_power_months": "Months to operational", "break_even_years": "Years to break-even"}
             )
         )
@@ -620,22 +606,18 @@ with tab_risk:
 # TAB: Asset Availability Intelligence (old UI feel + new signals)
 # -----------------------------
 with tab_assets:
-    st.header("Asset Availability Intelligence (Indicative Telemetry → Risk Signals)")
-    st.warning("Boundary: Aegis **does not** diagnose faults or prescribe maintenance. It flags indicative risks for operator review.")
+    st.header("Asset Health Intelligence")
+    st.warning("Disclaimer: Aegis **does not** diagnose faults or prescribe maintenance. It flags indicative risks for operator review.")
 
     left, right = st.columns([1, 1])
 
     with left:
-        st.subheader("Operator-provided telemetry (prototype inputs)")
+        st.subheader("Equipment Diagnostics")
         vib = st.slider("Pump vibration (mm/s)", 0.0, 10.0, 1.2, 0.1, key="as_v1")
-        vib_alt = st.slider("Alt vibration sensor (mm/s)", 0.0, 10.0, 1.1, 0.1, key="as_v2")
-
-        temp_de = st.slider("DE temperature (°C)", 0.0, 120.0, 40.0, 1.0, key="as_tde")
-        temp_nde = st.slider("NDE temperature (°C)", 0.0, 120.0, 40.0, 1.0, key="as_tnde")
-
-        pressure_delta = st.slider("Pressure delta (bar) — proxy", 0.0, 10.0, 1.6, 0.1, key="as_pd")
+        temp_de = st.slider("Pump DE temperature (°C)", 0.0, 120.0, 40.0, 1.0, key="as_tde")
+        temp_nde = st.slider("Pump NDE temperature (°C)", 0.0, 120.0, 40.0, 1.0, key="as_tnde")
+        pump_life = st.slider("Total Useful Life (years)", 0.0, 15.0, 2.0, 0.1, key="as_pd")
         cadence = st.selectbox("Cadence", ["1m", "10m", "1h"], index=1, key="as_cad")
-        fusion = st.selectbox("Fusion", ["Weighted", "Majority"], index=0, key="as_fus")
 
         # New-ish signals (still safe): priority events based on thresholds
         events = []
@@ -643,40 +625,29 @@ with tab_assets:
             events.append("High vibration event")
         if max(temp_de, temp_nde) > 70:
             events.append("High temperature event")
-        if pressure_delta > 4.0:
-            events.append("Pressure delta anomaly")
-        if abs(vib - vib_alt) > 0.8:
-            events.append("Sensor disagreement event")
 
         if len(events) == 0:
-            events = ["No priority events detected (prototype)"]
+            events = ["No priority events detected"]
 
-        st.subheader("Priority events (demo)")
+        st.subheader("Priority events")
         for e in events:
             st.write(f"• {e}")
 
     # Explainable risk score (like old version, but improved)
     vib_thr = 7.0
     temp_thr = 90.0
-    disagreement = abs(vib - vib_alt)
 
     vib_risk = clamp(vib / vib_thr, 0, 1.5)
     temp_risk = clamp(max(temp_de, temp_nde) / temp_thr, 0, 1.5)
-    sensor_risk = clamp(disagreement / 1.0, 0, 1.5)
-    pd_risk = clamp(pressure_delta / 6.0, 0, 1.5)
 
-    if fusion == "Weighted":
-        availability_risk = 0.45 * vib_risk + 0.30 * temp_risk + 0.15 * pd_risk + 0.10 * sensor_risk
-    else:
-        flags = sum([vib_risk > 0.7, temp_risk > 0.7, pd_risk > 0.7, sensor_risk > 0.7])
-        availability_risk = {0: 0.25, 1: 0.45, 2: 0.65, 3: 0.82, 4: 0.95}[flags]
+    availability_risk = 0.6 * vib_risk + 0.4 * temp_risk
 
     cadence_factor = {"1m": 1.00, "10m": 0.93, "1h": 0.85}[cadence]
     availability_risk = clamp((availability_risk / 1.5) * cadence_factor, 0.0, 1.0)
 
     # Add M-score + RUL (visible)
     m_score = clamp(availability_risk * 100.0, 0.0, 100.0)
-    rul_days = int(clamp(365 * (1.0 - (m_score / 100.0)) ** 1.6, 10, 365))
+    rul_days = int(clamp(pump_life * 365 * (1.0 - (m_score / 100.0)) ** 1.6, 10, 365))
 
     # Store minimal for decision confidence
     st.session_state["availability_risk_score"] = float(availability_risk)
@@ -684,7 +655,7 @@ with tab_assets:
     st.session_state["rul_days"] = int(rul_days)
 
     with right:
-        st.subheader("Availability dashboard (investor-safe view)")
+        st.subheader("Availability Dashboard")
         if availability_risk < 0.25:
             badge(f"Availability Risk: **Low** ({availability_risk:.2f}) — signals normal.", "success")
             priority = "Routine"
@@ -695,7 +666,7 @@ with tab_assets:
             badge(f"Availability Risk: **High** ({availability_risk:.2f}) — escalate to licensed operator review.", "error")
             priority = "Escalate to operator review"
 
-        st.info(f"Recommended action (prototype): **{priority}**")
+        st.info(f"Recommended action: **{priority}**")
 
         c1, c2, c3 = st.columns(3)
         c1.metric("M-score", f"{m_score:.1f}")
@@ -703,8 +674,8 @@ with tab_assets:
         c3.metric("Data cadence", cadence)
 
         # Trend (simulated) — like old UI
-        series = np.random.default_rng(3).normal(1.2, 0.2, 50).tolist() + [vib]
-        fig = px.line(series, labels={"index": "Time (hours)", "value": "Vibration (mm/s)"}, title="Vibration trend (simulated)")
+        series = np.random.default_rng().normal(1.2, 0.2, 50).tolist() + [vib]
+        fig = px.line(series, labels={"index": "Time (hours)", "value": "Vibration (mm/s)"}, title="Vibration trend")
         fig.add_hline(y=vib_thr, line_dash="dash", line_color="red", annotation_text="Indicative threshold")
         st.plotly_chart(fig)
 
@@ -713,7 +684,6 @@ with tab_assets:
                 st.markdown(
                     "- Thresholds are indicative placeholders.\n"
                     "- Risk score is an explainable proxy, not a diagnostic.\n"
-                    "- Sensor disagreement is treated as data-quality risk.\n"
                     "- Real deployments should consume OEM-approved, non-safety-critical telemetry."
                 )
 
@@ -722,9 +692,9 @@ with tab_assets:
 # TAB: Regulatory Navigator (RAG stub, better looking)
 # -----------------------------
 with tab_reg:
-    st.header("Regulatory Navigator (RAG): Cited Answers + Uncertainty Flags")
+    st.header("Regulatory Navigator (RAG)")
+    st.subheader("Cited Answers + Uncertainty Flags")
     st.write(
-        "Prototype module. In production, this would retrieve from a curated corpus of **primary sources** and policy notes.\n\n"
         "**Safeguard:** Decision support only; not legal advice."
     )
 
@@ -765,7 +735,7 @@ with tab_reg:
     col1, col2 = st.columns([1.2, 0.8])
 
     with col1:
-        st.subheader("Aegis Regulatory Insight (prototype)")
+        st.subheader("Aegis Regulatory Insight")
         if int(top["match_score"].iloc[0]) == 0:
             st.warning("No strong match found in the demo corpus. Add documents or refine the query.")
         else:
@@ -778,7 +748,7 @@ with tab_reg:
     with col2:
         st.subheader("Source Verification")
         st.progress(float(legal_coverage_score), text=f"Source Coverage Score: {int(legal_coverage_score*100)}%")
-        st.caption("Higher = more complete primary sources retrieved and cross-checked (prototype input).")
+        st.caption("Higher = more complete primary sources retrieved and cross-checked.")
 
         st.markdown("**Guardrails**")
         st.markdown(
@@ -801,7 +771,7 @@ with tab_reg:
 # TAB: Executive Summary (best of old UI + new outputs)
 # -----------------------------
 with tab_exec:
-    st.header("Executive Decision Summary (Investor View)")
+    st.header("Executive Decision Summary")
 
     demand_profile = st.session_state.get("demand_profile_mw", np.full(24, 10.0))
     supply_mw_effective = float(st.session_state.get("supply_mw_effective", float(smr_unit_rated_mw)))
@@ -844,17 +814,9 @@ with tab_exec:
     st.info(f"**Recommendation:** {decision['recommendation']}")
 
     st.markdown("---")
-    st.subheader("Contents (What this MVP does)")
-    st.markdown(
-        "1) Converts AI compute scenario → **24h demand profile** (MW)\n"
-        "2) Reconciles demand → **required SMR fleet** + storage\n"
-        "3) Runs **uncertainty**: time-to-power + break-even cloud\n"
-        "4) Decomposes **value vs cost** (implied value of electricity)\n"
-        "5) Flags **availability risk** + shows a Regulatory Navigator stub\n"
-    )
 
     # --- Nuclear highlights / key parameters (the “interesting” part you asked for)
-    st.subheader("Key Parameters (What investors ask in 30 seconds)")
+    st.subheader("Key Parameters")
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Supply ratio (avg)", f"{decision['supply_ratio_avg']:.2f}×")
     k2.metric("Supply ratio (peak)", f"{decision['supply_ratio_peak']:.2f}×")
@@ -865,7 +827,7 @@ with tab_exec:
     st.caption("Interpretation: SMR treated as fixed baseload; routing flexibility is downstream (battery/thermal/cooling).")
 
     # --- Baseline comparator (old version, but now ties to your computed time-to-power)
-    st.subheader("Baseline Comparator (Grid + Storage) — prototype lens")
+    st.subheader("Baseline Comparator (Grid + Storage)")
     grid_time_years = st.slider("Grid upgrade timeline (years)", 1.0, 10.0, 6.0, 0.5, key="ex_gridtime")
     storage_cost_proxy_crore = st.slider("Storage cost proxy (₹ crore) — reliability add-on", 0.0, 5000.0, 800.0, 50.0, key="ex_storageproxy")
 
@@ -883,25 +845,16 @@ with tab_exec:
     lcoe = st.session_state.get("lcoe_rs_per_kwh")
     implied = st.session_state.get("implied_rs_per_kwh")
     if lcoe is not None and implied is not None:
-        st.subheader("Economics highlight (from decomposition)")
+        st.subheader("Key Economic Parameter (from decomposition)")
         e1, e2, e3 = st.columns(3)
         e1.metric("LCOE (₹/kWh)", f"{float(lcoe):.2f}")
         e2.metric("Implied value (₹/kWh)", f"{float(implied):.2f}")
         e3.metric("Value − LCOE (₹/kWh)", f"{(float(implied) - float(lcoe)):.2f}")
-
-    st.markdown("---")
-    st.markdown(
-        "**Boundary & disclaimer:** Aegis is a **decision-support MVP**. Inputs are simulated for demonstration. "
-        "It provides planning insights and uncertainty framing; it **does not control or operate nuclear assets**."
-    )
-
 
 # -----------------------------
 # FOOTER
 # -----------------------------
 st.markdown("---")
 st.markdown(
-    "**Aegis Cognitive Twin (Hybrid MVP)** — AI-native decision support for Nuclear-as-a-Service (NaaS) + AI infrastructure.\n\n"
-    "**Scope boundary:** Advises planners/investors/operators via simulation & cited policy retrieval. "
-    "**Not** a reactor control or licensed operations system."
+    "**Property of Sai Akshit Kurella, Jason Joel Dsilva, Muskaan Jain, Rohit Yatgiri, Shreyas Khatri**."
 )
