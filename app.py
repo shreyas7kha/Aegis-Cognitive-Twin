@@ -268,7 +268,7 @@ with tab_workflow:
             yaxis_title="Power (MW)",
             xaxis_title="Time"
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig)
 
         peak = float(np.max(demand))
         st.caption(
@@ -288,7 +288,7 @@ with tab_workflow:
         {"Step": "4) Fleet (peak basis)", "Value": f"{int(np.ceil(np.max(demand)/max(float(smr_unit_rated_mw),1e-6)))} unit(s)",
          "Notes": "ceil(peak / unit size)"},
     ])
-    st.dataframe(workflow_df, width="stretch")
+    st.dataframe(workflow_df)
 
 
 # -----------------------------
@@ -408,10 +408,10 @@ with tab_facility:
             fig.add_trace(go.Bar(x=facility_df["hour"], y=facility_df["Thermal_absorb_MW"], name="Thermal absorb", opacity=0.35))
             fig.add_trace(go.Bar(x=facility_df["hour"], y=facility_df["Unserved_MW"], name="Unserved", opacity=0.85))
             fig.update_layout(barmode="relative", xaxis_title="Hour", yaxis_title="MW")
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig)
 
             fig_soc = px.line(facility_df, x="hour", y="SOC_pct", title="Battery state-of-charge (linked)")
-            st.plotly_chart(fig_soc, width="stretch")
+            st.plotly_chart(fig_soc)
 
             c1, c2, c3 = st.columns(3)
             c1.metric("Effective supply (MW)", f"{supply_mw:.2f}")
@@ -506,7 +506,7 @@ with tab_econ:
                 "Component": ["Energy value (grid)", "Backup avoided premium", "Downtime avoided value"],
                 "₹/year": [energy_value_rs, backup_value_rs, downtime_value_rs]
             })
-            st.plotly_chart(px.bar(parts, x="Component", y="₹/year", title="Implied value decomposition"), width="stretch")
+            st.plotly_chart(px.bar(parts, x="Component", y="₹/year", title="Implied value decomposition"))
 
             with st.expander("Explain this to a judge in 20 seconds"):
                 st.markdown(
@@ -603,8 +603,7 @@ with tab_risk:
 
         st.plotly_chart(
             px.histogram(risk_df, x="time_to_power_months", nbins=35, histnorm="probability",
-                         title="Time-to-power distribution (probability)"),
-            width="stretch"
+                         title="Time-to-power distribution (probability)")
         )
 
         st.plotly_chart(
@@ -613,8 +612,7 @@ with tab_risk:
                 color="value_minus_cost", opacity=0.6,
                 title="Delay vs Break-even (uncertainty cloud)",
                 labels={"time_to_power_months": "Months to operational", "break_even_years": "Years to break-even"}
-            ),
-            width="stretch"
+            )
         )
 
 
@@ -708,7 +706,7 @@ with tab_assets:
         series = np.random.default_rng(3).normal(1.2, 0.2, 50).tolist() + [vib]
         fig = px.line(series, labels={"index": "Time (hours)", "value": "Vibration (mm/s)"}, title="Vibration trend (simulated)")
         fig.add_hline(y=vib_thr, line_dash="dash", line_color="red", annotation_text="Indicative threshold")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig)
 
         if show_assumptions:
             with st.expander("Assumptions (availability)"):
@@ -879,7 +877,7 @@ with tab_exec:
         "Time-to-power (years)": [sm_p50_years, sm_p90_years, grid_time_years],
         "Reliability add-on cost proxy (₹ crore)": [0.0, 0.0, storage_cost_proxy_crore]
     })
-    st.dataframe(comp, width="stretch")
+    st.dataframe(comp)
 
     # --- Economics highlight (only if computed)
     lcoe = st.session_state.get("lcoe_rs_per_kwh")
