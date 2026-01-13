@@ -417,11 +417,11 @@ with tab_econ:
 
         with left:
             st.write("### Financial Inputs")
-            capex_per_mw_crore = st.number_input("All-in CAPEX (₹ crore / MW)", 1.0, 100.0, 12.0, 0.5, key="ec_capex")
-            fixed_capex_crore = st.number_input("Fixed CAPEX (₹ crore)", 0.0, 50000.0, 500.0, 50.0, key="ec_fixcapex")
-            opex_fixed_crore_per_year = st.number_input("Fixed OPEX (₹ crore / year)", 0.0, 20000.0, 250.0, 10.0, key="ec_opexfix")
+            capex_per_mw_crore = st.number_input("All-in CAPEX (₹ crore / MW)", 1.0, 100.0, 10.0, 0.5, key="ec_capex")
+            fixed_capex_crore = st.number_input("Fixed CAPEX (₹ crore)", 0.0, 50000.0, 100.0, 50.0, key="ec_fixcapex")
+            opex_fixed_crore_per_year = st.number_input("Fixed OPEX (₹ crore / year)", 0.0, 20000.0, 100.0, 10.0, key="ec_opexfix")
 
-            opex_per_kwh = st.number_input("Variable OPEX (₹ / kWh)", 0.5, 20.0, 5.0, 0.5, key="ec_opexkwh")
+            opex_per_kwh = st.number_input("Variable OPEX (₹ / kWh)", 0.1, 10.0, 1.0, 0.1, key="ec_opexkwh")
 
             project_life_years = st.slider("Project life (years)", 10, 40, 25, key="ec_life")
             wacc = st.slider("Discount rate / WACC (%)", 3.0, 18.0, 10.0, 0.5, key="ec_wacc") / 100.0
@@ -507,7 +507,6 @@ with tab_econ:
 with tab_risk:
     st.header("Risk Analysis")
     st.subheader("Time-to-Power + Break-even under Uncertainty")
-    st.write("This module explains what the *cloud* means and what drives it (inputs → distribution).")
 
     demand_profile = st.session_state.get("demand_profile_mw", np.full(24, 10.0))
     avg_demand_mw = float(st.session_state.get("avg_demand_mw", float(np.mean(demand_profile))))
@@ -524,7 +523,7 @@ with tab_risk:
         construction_mean = st.slider("Construction mean (months)", 6, 60, 18, 1, key="rk_cm")
         construction_std = st.slider("Construction std dev (months)", 1, 24, 5, 1, key="rk_cs")
 
-        delay_prob = st.slider("Delay probability", 0.0, 0.8, 0.25, 0.05, key="rk_dp")
+        delay_prob = st.slider("Delay probability", 0.0, 1.0, 0.25, 0.05, key="rk_dp")
         delay_months = st.slider("Delay months if hit", 0, 24, 6, 1, key="rk_dm")
 
         capex_unc_sd = st.slider("CAPEX uncertainty (sd %)", 0.0, 40.0, 15.0, 1.0, key="rk_csd")
