@@ -144,7 +144,7 @@ discount_rate = st.sidebar.slider("Discount Rate (%)", 3.0, 18.0, 10.0, 0.5) / 1
 downtime_cost_per_hr_crore = st.sidebar.number_input("Downtime Cost (₹ crore / hour)", 0.1, 50.0, 5.0, step=0.1)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Regulatory Coverage (Prototype)")
+st.sidebar.subheader("Regulatory Coverage")
 legal_coverage_score = st.sidebar.slider(
     "Source Coverage Score (0–1)", 0.0, 1.0, 0.85, 0.01,
     help="Proxy for completeness of retrieved primary sources in the RAG module."
@@ -228,7 +228,7 @@ with tab_workflow:
         st.info(f"Indicative SMR fleet (avg basis): **{req_units_avg} unit(s)** @ {smr_unit_rated_mw} MW each")
 
         if show_assumptions:
-            with st.expander("Model assumptions (transparent)"):
+            with st.expander("Model assumptions"):
                 st.markdown(
                     "- GPU power is a **proxy** for demo. Real deployments replace this with measured IT load.\n"
                     "- Facility demand = IT power × utilization × PUE.\n"
@@ -711,10 +711,10 @@ with tab_reg:
             "source": "NITI Aayog report"
         },
         {
-            "title": "Draft / consultation paper (placeholder) — verify before relying",
-            "status": "Draft / proposal (unverified)",
+            "title": "Draft / consultation paper — verify before relying",
+            "status": "Draft / proposal",
             "snippet": "Prototype placeholder. Replace with actual draft text if it exists; otherwise do not assert specifics as fact.",
-            "source": "Consultation / draft doc (to be verified)"
+            "source": "Consultation / draft doc"
         }
     ]
     df_docs = pd.DataFrame(docs)
