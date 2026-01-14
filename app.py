@@ -615,8 +615,9 @@ with tab_assets:
         vib = st.slider("Pump vibration (mm/s)", 0.0, 10.0, 1.2, 0.1, key="as_v1")
         temp_de = st.slider("Pump DE temperature (°C)", 0.0, 120.0, 40.0, 1.0, key="as_tde")
         temp_nde = st.slider("Pump NDE temperature (°C)", 0.0, 120.0, 40.0, 1.0, key="as_tnde")
-        pump_life = st.slider("Total Useful Life (years)", 0.0, 15.0, 2.0, 0.1, key="as_pd")
-        cadence = st.selectbox("Cadence", ["1m", "10m", "1h"], index=1, key="as_cad")
+        pressure_delta = st.slider("Pressure delta (bar)", 0.0, 10.0, 1.6, 0.1, key="as_pd")
+        pump_life = st.slider("Total Useful Life (years)", 0.0, 15.0, 2.0, 0.1, key="as_pumplife")
+        cadence = st.selectbox("Cadence", ["1m", "10m", "30m" "1h"], index=1, key="as_cad")
 
         # New-ish signals (still safe): priority events based on thresholds
         events = []
@@ -624,6 +625,8 @@ with tab_assets:
             events.append("High vibration event")
         if max(temp_de, temp_nde) > 70:
             events.append("High temperature event")
+        if pressure_delta > 4.0:
+            events.append("Pressure delta anomaly")
 
         if len(events) == 0:
             events = ["No priority events detected"]
@@ -638,10 +641,11 @@ with tab_assets:
 
     vib_risk = clamp(vib / vib_thr, 0, 1.5)
     temp_risk = clamp(max(temp_de, temp_nde) / temp_thr, 0, 1.5)
+    pd_risk = clamp(pressure_delta / 6.0, 0, 1.5)
 
-    availability_risk = 0.6 * vib_risk + 0.4 * temp_risk
+    availability_risk = 0.5 * vib_risk + 0.35 * temp_risk + 0.15 * pd_risk
 
-    cadence_factor = {"1m": 1.00, "10m": 0.93, "1h": 0.85}[cadence]
+    cadence_factor = {"1m": 1.00, "10m": 0.93, "30m":0.89, "1h": 0.85}[cadence]
     availability_risk = clamp((availability_risk / 1.5) * cadence_factor, 0.0, 1.0)
 
     # Add M-score + RUL (visible)
@@ -693,7 +697,7 @@ with tab_assets:
 with tab_reg:
     st.header("Regulatory Navigator (RAG)")
     st.subheader("Cited Answers + Uncertainty Flags")
-    st.write(
+    st.warning(
         "**Safeguard:** Decision support only; not legal advice."
     )
 
