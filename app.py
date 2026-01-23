@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-
+from info import STATE_PROFILES, SITE_PROFILES
 
 # -----------------------------
 # PAGE CONFIG
@@ -138,6 +138,21 @@ st.sidebar.info(
     "Disclaimer: **Aegis advises; it does not control nuclear assets.**"
 )
 
+
+st.sidebar.markdown("---")
+# Choosing Location
+st.sidebar.subheader("🌍 Region Selection")
+sel_state = st.sidebar.selectbox("Target State", list(STATE_PROFILES.keys()))
+sel_site = st.sidebar.selectbox("Site Category", list(SITE_PROFILES.keys()))
+
+# Store combined context in session state
+st.session_state["geo_context"] = {
+    "state": STATE_PROFILES[sel_state],
+    "site": SITE_PROFILES[sel_site]
+}
+
+
+st.sidebar.markdown("---")
 # Keep globals only for things that truly are “system-level knobs”
 smr_unit_rated_mw = st.sidebar.number_input("SMR Unit Rated Capacity (MW)", 15, 300, 77, step=1)
 discount_rate = st.sidebar.slider("Discount Rate (%)", 3.0, 18.0, 10.0, 0.5) / 100.0
@@ -163,11 +178,12 @@ st.subheader("AI-native platform to evaluate SMR co-location for AI data centres
 # -----------------------------
 # TABS
 # -----------------------------
-tab_exec, tab_workflow, tab_facility, tab_econ, tab_risk, tab_assets, tab_reg = st.tabs([
+tab_exec, tab_workflow, tab_facility, tab_econ, tab_loc, tab_risk, tab_assets, tab_reg = st.tabs([
     "✅ Executive Summary",
     "📈 Demand Workflow",
     "🏭 Supply Workflow",
     "💰 Economics",
+    "📍 Location Navigator",
     "⏱️ Risk Analysis",
     "🧭 Predictive Intelligence",
     "⚖️ Regulatory Navigator (RAG)"
@@ -410,6 +426,8 @@ with tab_facility:
 with tab_econ:
     st.header("Economics")
     facility_df = st.session_state.get("facility_df")
+    geo = st.session_state["geo_context"]
+    state_subsidy = geo["state"]["subsidy_crore"] if geo else 0.0
     if facility_df is None:
         st.warning("Go to 'Supply Workflow' tab first.")
     else:
@@ -450,7 +468,8 @@ with tab_econ:
         # Approximate nameplate MW for capex (use rated units, not CF-adjusted)
         nameplate_mw = fleet_units * float(smr_unit_rated_mw)
 
-        total_capex_crore = (nameplate_mw * capex_per_mw_crore) + fixed_capex_crore
+        base_capex_crore = (nameplate_mw * capex_per_mw_crore) + fixed_capex_crore
+        total_capex_crore = max(0.0, base_capex_crore - state_subsidy)
         annualized_capex_crore = total_capex_crore * annuity_factor(wacc, int(project_life_years))
 
         annual_mwh_served = float(facility_df["Demand_MW"].sum()) * 365.0
@@ -477,15 +496,19 @@ with tab_econ:
         with right:
             st.write("### Outputs")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Total CAPEX (₹ crore)", f"{total_capex_crore:,.0f}")
-            c2.metric("Annualized CAPEX (₹ crore/yr)", f"{annualized_capex_crore:,.0f}")
-            c3.metric("Annual OPEX (₹ crore/yr)", f"{annual_opex_crore:,.0f}")
-            c4.metric("LCOE (₹/kWh)", f"{lcoe_rs_per_kwh:.2f}")
-
+            c1.metric("Gross CAPEX (₹ Cr)", f"{base_capex_crore:,.0f}")
+            c2.metric("State Subsidy (₹ Cr)", f"{state_subsidy:,.0f}", delta_color="normal")
+            c3.metric("Total CAPEX (₹ Cr)", f"{total_capex_crore:,.0f}")
+            
             d1, d2, d3 = st.columns(3)
-            d1.metric("Implied value (₹/kWh)", f"{implied_rs_per_kwh:.2f}")
-            d2.metric("Value − LCOE (₹/kWh)", f"{(implied_rs_per_kwh - lcoe_rs_per_kwh):.2f}")
-            d3.metric("Fleet (units)", f"{fleet_units}")
+            d1.metric("Annualized CAPEX (₹ Cr/yr)", f"{annualized_capex_crore:,.0f}")
+            d2.metric("Annual OPEX (₹ Cr/yr)", f"{annual_opex_crore:,.0f}")
+            d3.metric("LCOE (₹/kWh)", f"{lcoe_rs_per_kwh:.2f}")
+
+            e1, e2, e3 = st.columns(3)
+            e1.metric("Implied value (₹/kWh)", f"{implied_rs_per_kwh:.2f}")
+            e2.metric("Value − LCOE (₹/kWh)", f"{(implied_rs_per_kwh - lcoe_rs_per_kwh):.2f}")
+            e3.metric("Fleet (units)", f"{fleet_units}")
 
             parts = pd.DataFrame({
                 "Component": ["Energy value (grid)", "Backup avoided premium", "Downtime avoided value"],
@@ -539,12 +562,21 @@ with tab_risk:
                     "**Inputs that move the cloud:** licensing+construction uncertainty, delay probability, CAPEX uncertainty, and value uncertainty."
                 )
 
+    geo = st.session_state["geo_context"]
+
+    # Adjusting by Site Profile
+    adj_construction_mean = construction_mean * geo['state']['cmt_factor'] * geo['site']['site_con_mult']
+    adj_licensing_mean = licensing_mean * geo['site']['licensing_mult'] / geo['state']['reg_ease']
+    adj_capex = capex_per_mw_crore * geo["site"]["capex_mod"]
+    adj_pue = pue_target * geo["state"]["pue_mod"]
+
     # Local simulation
     rng = np.random.default_rng(42)
-    lic = np.clip(rng.normal(licensing_mean, licensing_std, sim_count), 3, 84)
-    con = np.clip(rng.normal(construction_mean, construction_std, sim_count), 3, 84)
-    delay = (rng.random(sim_count) < delay_prob).astype(float) * float(delay_months)
+    lic = np.clip(rng.normal(adj_licensing_mean, licensing_std, sim_count), 3, 84)
+    con = np.clip(rng.normal(adj_construction_mean, construction_std*geo['site']['const_std_mod'], sim_count), 3, 84)
+    delay = (rng.random(sim_count) < delay_prob*geo["site"]["delay_prob"]).astype(float) * float(delay_months)
 
+    print(adj_licensing_mean, lic)
     time_to_power_months = lic + con + delay
     time_to_power_months = np.clip(time_to_power_months, 6, 120)
 
@@ -554,6 +586,7 @@ with tab_risk:
 
     capex_mult = np.clip(rng.normal(1.0, capex_unc_sd / 100.0, sim_count), 0.6, 1.8)
     value_mult = np.clip(rng.normal(1.0, margin_unc_sd / 100.0, sim_count), 0.4, 2.2)
+    geo = st.session_state["geo_context"]
 
     value_minus_cost = (implied * value_mult) - (lcoe * capex_mult)
 
@@ -600,6 +633,62 @@ with tab_risk:
             )
         )
 
+# -----------------------------
+# TAB: Location Intelligence
+# -----------------------------
+with tab_loc:
+    st.header("📍 Location Navigator")
+    
+    # Retrieve the global context we set in the Sidebar
+    geo = st.session_state.get("geo_context")
+    if geo is None:
+        st.warning("Please select a State and Site Profile in the Sidebar.")
+    else:
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("Selected Site Profile")
+            st.info(f"**State:** {sel_state} | **Site:** {sel_site}")
+            
+            # Displaying the engineering & regulatory impact metrics
+            st.metric("Regulatory Ease Score", f"{int(geo['state']['reg_ease']*100)}%", 
+                      help="Higher score indicates faster permitting and lower bureaucratic friction.")
+            
+            st.metric("Site CAPEX Multiplier", f"{geo['site']['capex_mod']}x", 
+                      delta=f"{int((geo['site']['capex_mod']-1)*100)}%", delta_color="inverse",
+                      help="Multiplier applied to base CAPEX due to site-specific infrastructure needs.")
+            
+            st.metric("Inherent Delay Probability", f"{int(geo['site']['delay_prob']*100)}%",
+                      help="Probability multiplier of a significant schedule delay based on site history.")
+
+        with col2:
+            st.subheader("Regional Impact Analysis")
+            
+            # Visualize the tradeoffs
+            impact_data = pd.DataFrame({
+                "Metric": ["Cooling Efficiency (PUE)", "Construction Predictability", "Grid Tariff Advantage", "Subsidy Advantage"],
+                "Score": [
+                    (1/geo["state"]["pue_mod"]), 
+                    (1/geo["site"]["const_std_mod"]), 
+                    (10/geo["state"]["grid_tariff"]),
+                    (250/geo['state']['subsidy_crore'])
+                ]
+            })
+            
+            fig_impact = px.line_polar(impact_data, r='Score', theta='Metric', line_close=True,
+                                      title="Location Suitability Radar")
+            fig_impact.update_traces(fill='toself')
+            st.plotly_chart(fig_impact)
+            
+            st.caption("Radar normalized for comparison: Higher area = Better suitability for SMR co-location.")
+
+        st.markdown("---")
+        st.subheader("Strategic Site Reasoning")
+        # Logic-driven explanation of the selection
+        if "Brownfield" in sel_site:
+            st.success("✅ **Strategic Advantage:** Using a retired coal plant leverages existing grid substations and water rights, significantly reducing 'Time-to-Power'.")
+        elif "Coastal" in sel_site:
+            st.success("✅ **Strategic Advantage:** Coastal proximity allows for superior thermal management and once-through cooling, optimizing SMR thermal efficiency.")
 
 # -----------------------------
 # TAB: Asset Availability Intelligence (old UI feel + new signals)
